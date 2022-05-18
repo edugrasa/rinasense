@@ -27,14 +27,15 @@
 #include "esp_log.h"
 
 /**
- * @brief Fill the proto struct rina_messages_enrollmentInformation using the internal struct
- * enrollmentMessage_t
+ * @brief Encode a Enrollment message and return the serialized object value to be
+ * added into the CDAP message
  * 
- * @param pxMsg  struct enrollmentMessage_t that need to encode.
- * @return rina_messages_enrollmentInformation_t 
+ * @param pxMsg
+ * @return serObjectValue_t*
  */
-static rina_messages_enrollmentInformation_t prvSedesMsgEncodeEnroll(enrollmentMessage_t *pxMsg)
+serObjectValue_t *pxSerdesMsgEnrollmentEncode(enrollmentMessage_t *pxMsg)
 {
+        BaseType_t status;
         rina_messages_enrollmentInformation_t msgPb = rina_messages_enrollmentInformation_t_init_zero;
 
         /*adding the address msg struct*/
@@ -45,22 +46,6 @@ static rina_messages_enrollmentInformation_t prvSedesMsgEncodeEnroll(enrollmentM
                 msgPb.has_address = true;
         }
 
-        return msgPb;
-}
-
-
-/**
- * @brief Encode a Enrollment message and return the serialized object value to be
- * added into the CDAP message
- * 
- * @param pxMsg 
- * @return serObjectValue_t* 
- */
-serObjectValue_t *pxSerdesMsgEnrollmentEncode(enrollmentMessage_t *pxMsg)
-{
-        BaseType_t status;
-        rina_messages_enrollmentInformation_t enrollMsg = prvSedesMsgEncodeEnroll(pxMsg);
-
         // Allocate space on the stack to store the message data.
         void *pvBuffer = pvPortMalloc(MTU);
         int maxLength = MTU;
@@ -69,7 +54,7 @@ serObjectValue_t *pxSerdesMsgEnrollmentEncode(enrollmentMessage_t *pxMsg)
         pb_ostream_t stream = pb_ostream_from_buffer(pvBuffer, maxLength);
 
         // Now we are ready to encode the message.
-        status = pb_encode(&stream, rina_messages_enrollmentInformation_t_fields, &enrollMsg);
+        status = pb_encode(&stream, rina_messages_enrollmentInformation_t_fields, &msgPb);
 
         // Check for errors...
         if (!status)
@@ -166,14 +151,8 @@ static neighborMessage_t *prvSerdesMsgDecodeNeighbor(rina_messages_neighbor_t me
         pxMessage->ullAddress = message.address;
     }
 
-
-
-
     return pxMessage;
 }
-
-
-
 
 neighborMessage_t *pxserdesMsgDecodeNeighbor(uint8_t *pucBuffer, size_t xMessageLength)
 {
@@ -197,38 +176,31 @@ neighborMessage_t *pxserdesMsgDecodeNeighbor(uint8_t *pucBuffer, size_t xMessage
     return prvSerdesMsgDecodeNeighbor(message);
 }
 
-
-static rina_messages_neighbor_t prvSerdesMsgEncodeNeighbor(neighborMessage_t *pxMessage)
-{
-    rina_messages_neighbor_t message = rina_messages_neighbor_t_init_zero;
-
-    if(pxMessage->pcAeInstance)
-    {
-        strcpy(message.aeinstance, pxMessage->pcAeInstance);
-        message.has_aeinstance = true;
-    }
-        if(pxMessage->pcAeName)
-    {
-        strcpy(message.aename, pxMessage->pcAeName);
-        message.has_aename = true;
-    }
-        if(pxMessage->pcApInstance)
-    {
-        strcpy(message.apinstance, pxMessage->pcApInstance);
-        message.has_apinstance = true;
-    }
-        if(pxMessage->pcApName)
-    {
-        strcpy(message.apname, pxMessage->pcApName);
-        message.has_apname = true;
-    }
-
-    return message;
-}
 serObjectValue_t *pxSerdesMsgNeighborEncode(neighborMessage_t *pxMsg)
 {
         BaseType_t status;
-        rina_messages_neighbor_t  neighborMsg = prvSerdesMsgEncodeNeighbor(pxMsg);
+        rina_messages_neighbor_t message = rina_messages_neighbor_t_init_zero;
+
+        if(pxMsg->pcAeInstance)
+        {
+        	strcpy(message.aeinstance, pxMsg->pcAeInstance);
+        	message.has_aeinstance = true;
+        }
+        if(pxMsg->pcAeName)
+        {
+        	strcpy(message.aename, pxMsg->pcAeName);
+        	message.has_aename = true;
+        }
+        if(pxMsg->pcApInstance)
+        {
+        	strcpy(message.apinstance, pxMsg->pcApInstance);
+        	message.has_apinstance = true;
+        }
+        if(pxMsg->pcApName)
+        {
+        	strcpy(message.apname, pxMsg->pcApName);
+        	message.has_apname = true;
+        }
 
         // Allocate space on the stack to store the message data.
         void *pvBuffer = pvPortMalloc(MTU);
@@ -238,7 +210,7 @@ serObjectValue_t *pxSerdesMsgNeighborEncode(neighborMessage_t *pxMsg)
         pb_ostream_t stream = pb_ostream_from_buffer(pvBuffer, maxLength);
 
         // Now we are ready to encode the message.
-        status = pb_encode(&stream, rina_messages_neighbor_t_fields , &neighborMsg);
+        status = pb_encode(&stream, rina_messages_neighbor_t_fields , &message);
 
         // Check for errors...
         if (!status)
@@ -255,53 +227,46 @@ serObjectValue_t *pxSerdesMsgNeighborEncode(neighborMessage_t *pxMsg)
         return pxSerMsg;
 }
 
-
-static rina_messages_Flow prvSerdesMsgEncodeFlow(flow_t *pxMsg)
-{
-    rina_messages_Flow message = rina_messages_Flow_init_zero ;
-
-    //Fill required attributes
-    strcpy(message.sourceNamingInfo.applicationProcessName,pxMsg->pxSourceInfo->pcProcessName);
-    strcpy(message.destinationNamingInfo.applicationProcessName, pxMsg->pxDestInfo->pcProcessName);
-
-    message.sourcePortId = pxMsg->xSourcePortId;
-    message.sourceAddress = pxMsg->xSourceAddress;
-
-    message.connectionIds->sourceCEPId = pxMsg->pxConnectionId->xSource;
-    message.connectionIds->has_sourceCEPId = true;
-    message.connectionIds->qosId = pxMsg->pxConnectionId->xQosId;
-    message.connectionIds->has_qosId = true;
-
-    message.has_qosParameters = true;
-    message.qosParameters.qosid = pxMsg->pxQosSpec->xQosId;
-    message.qosParameters.has_qosid = true;
-    strcpy(message.qosParameters.name, pxMsg->pxQosSpec->pcQosName);
-    message.qosParameters.has_name = true;
-    message.qosParameters.partialDelivery = pxMsg->pxQosSpec->pxFlowSpec->xPartialDelivery;
-    message.qosParameters.has_partialDelivery = true;
-    message.qosParameters.order = pxMsg->pxQosSpec->pxFlowSpec->xOrderedDelivery;
-    message.qosParameters.has_order = true;
-
-    message.has_dtpConfig = true;
-    strcpy( message.dtpConfig.dtppolicyset.policyName,
-        pxMsg->pxDtpConfig->pxDtpPolicySet->pcPolicyName );
-    message.dtpConfig.dtppolicyset.has_policyName = true;
-    strcpy( message.dtpConfig.dtppolicyset.version,
-        pxMsg->pxDtpConfig->pxDtpPolicySet->pcPolicyVersion );
-    message.dtpConfig.dtppolicyset.has_version = true;
-
-    message.dtpConfig.initialATimer = pxMsg->pxDtpConfig->xInitialATimer;
-    message.dtpConfig.has_initialATimer = true;
-
-    message.dtpConfig.dtcpPresent = pxMsg->pxDtpConfig->xDtcpPresent;
-    message.dtpConfig.has_dtcpPresent = true;
-
-    return message;
-}
 serObjectValue_t *pxSerdesMsgFlowEncode(flow_t *pxMsg)
 {
         BaseType_t status;
-        rina_messages_Flow flowMsg = prvSerdesMsgEncodeFlow(pxMsg);
+        rina_messages_Flow message = rina_messages_Flow_init_zero ;
+
+        //Fill required attributes
+        strcpy(message.sourceNamingInfo.applicationProcessName,pxMsg->pxSourceInfo->pcProcessName);
+        strcpy(message.destinationNamingInfo.applicationProcessName, pxMsg->pxDestInfo->pcProcessName);
+
+        message.sourcePortId = pxMsg->xSourcePortId;
+        message.sourceAddress = pxMsg->xSourceAddress;
+
+        message.connectionIds->sourceCEPId = pxMsg->pxConnectionId->xSource;
+        message.connectionIds->has_sourceCEPId = true;
+        message.connectionIds->qosId = pxMsg->pxConnectionId->xQosId;
+        message.connectionIds->has_qosId = true;
+
+        message.has_qosParameters = true;
+        message.qosParameters.qosid = pxMsg->pxQosSpec->xQosId;
+        message.qosParameters.has_qosid = true;
+        strcpy(message.qosParameters.name, pxMsg->pxQosSpec->pcQosName);
+        message.qosParameters.has_name = true;
+        message.qosParameters.partialDelivery = pxMsg->pxQosSpec->pxFlowSpec->xPartialDelivery;
+        message.qosParameters.has_partialDelivery = true;
+        message.qosParameters.order = pxMsg->pxQosSpec->pxFlowSpec->xOrderedDelivery;
+        message.qosParameters.has_order = true;
+
+        message.has_dtpConfig = true;
+        strcpy( message.dtpConfig.dtppolicyset.policyName,
+            pxMsg->pxDtpConfig->pxDtpPolicySet->pcPolicyName );
+        message.dtpConfig.dtppolicyset.has_policyName = true;
+        strcpy( message.dtpConfig.dtppolicyset.version,
+            pxMsg->pxDtpConfig->pxDtpPolicySet->pcPolicyVersion );
+        message.dtpConfig.dtppolicyset.has_version = true;
+
+        message.dtpConfig.initialATimer = pxMsg->pxDtpConfig->xInitialATimer;
+        message.dtpConfig.has_initialATimer = true;
+
+        message.dtpConfig.dtcpPresent = pxMsg->pxDtpConfig->xDtcpPresent;
+        message.dtpConfig.has_dtcpPresent = true;
 
         // Allocate space on the stack to store the message data.
         void *pvBuffer = pvPortMalloc(MTU);
@@ -311,7 +276,7 @@ serObjectValue_t *pxSerdesMsgFlowEncode(flow_t *pxMsg)
         pb_ostream_t stream = pb_ostream_from_buffer(pvBuffer, maxLength);
 
         // Now we are ready to encode the message.
-        status = pb_encode(&stream, rina_messages_Flow_fields , &flowMsg);
+        status = pb_encode(&stream, rina_messages_Flow_fields , &message);
 
         // Check for errors...
         if (!status)

@@ -275,9 +275,16 @@ bool encode_string(pb_ostream_t *stream, const pb_field_t *field, void *const *a
     return pb_encode_string(stream, (uint8_t *)str, strlen(str));
 }
 
-rina_messages_CDAPMessage prvRibdSerToRinaMessage(messageCdap_t *pxMessageCdap)
+NetworkBufferDescriptor_t *prvRibdEncodeCDAP(messageCdap_t *pxMessageCdap)
 {
+    BaseType_t status;
+    uint8_t *pucBuffer[256];
+    size_t xMessageLength;
 
+    /*Create a stream that will write to the buffer*/
+    pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)pucBuffer, sizeof(pucBuffer));
+
+    /*Fill the message properly*/
     /*Allocate space on the Stack to store the message data*/
     rina_messages_CDAPMessage message = rina_messages_CDAPMessage_init_zero;
 
@@ -291,113 +298,98 @@ rina_messages_CDAPMessage prvRibdSerToRinaMessage(messageCdap_t *pxMessageCdap)
 
     if (pxMessageCdap->result != -1)
     {
-        message.result = pxMessageCdap->result;
-        message.has_result = true;
+    	message.result = pxMessageCdap->result;
+    	message.has_result = true;
     }
 
     /*Destination*/
-    if (pxMessageCdap->pcDestAeInst != NULL)
-    {
-        strcpy(message.destAEInst, pxMessageCdap->pcDestAeInst);
-        message.has_destAEInst = true;
-    }
+	if (pxMessageCdap->pcDestAeInst != NULL)
+	{
+		strcpy(message.destAEInst, pxMessageCdap->pcDestAeInst);
+		message.has_destAEInst = true;
+	}
 
-    if (pxMessageCdap->pcDestAeName != NULL)
-    {
-        strcpy(message.destAEName, pxMessageCdap->pcDestAeName);
-        message.has_destAEName = true;
-    }
+	if (pxMessageCdap->pcDestAeName != NULL)
+	{
+		strcpy(message.destAEName, pxMessageCdap->pcDestAeName);
+		message.has_destAEName = true;
+	}
 
-    if (pxMessageCdap->pcDestApInst != NULL)
-    {
-        strcpy(message.destApInst, pxMessageCdap->pcDestApInst);
-        message.has_destApInst = true;
-    }
+	if (pxMessageCdap->pcDestApInst != NULL)
+	{
+		strcpy(message.destApInst, pxMessageCdap->pcDestApInst);
+		message.has_destApInst = true;
+	}
 
-    if (pxMessageCdap->pcDestApName != NULL)
-    {
-        strcpy(message.destApName, pxMessageCdap->pcDestApName);
-        message.has_destApName = true;
-    }
+	if (pxMessageCdap->pcDestApName != NULL)
+	{
+		strcpy(message.destApName, pxMessageCdap->pcDestApName);
+		message.has_destApName = true;
+	}
 
-    /*Source*/
-    if (pxMessageCdap->pcSrcAeInst != NULL)
-    {
-        strcpy(message.srcAEInst, pxMessageCdap->pcSrcAeInst);
-        message.has_srcAEInst = true;
-    }
+	/*Source*/
+	if (pxMessageCdap->pcSrcAeInst != NULL)
+	{
+		strcpy(message.srcAEInst, pxMessageCdap->pcSrcAeInst);
+		message.has_srcAEInst = true;
+	}
 
-    if (pxMessageCdap->pcSrcAeName != NULL)
-    {
-        strcpy(message.srcAEName, pxMessageCdap->pcSrcAeName);
-        message.has_srcAEName = true;
-    }
+	if (pxMessageCdap->pcSrcAeName != NULL)
+	{
+		strcpy(message.srcAEName, pxMessageCdap->pcSrcAeName);
+		message.has_srcAEName = true;
+	}
 
-    if (pxMessageCdap->pcSrcApInst != NULL)
-    {
-        strcpy(message.srcApInst, pxMessageCdap->pcSrcApInst);
-        message.has_srcApInst = true;
-    }
+	if (pxMessageCdap->pcSrcApInst != NULL)
+	{
+		strcpy(message.srcApInst, pxMessageCdap->pcSrcApInst);
+		message.has_srcApInst = true;
+	}
 
-    if (pxMessageCdap->pcSrcApName != NULL)
-    {
-        strcpy(message.srcApName, pxMessageCdap->pcSrcApName);
-        message.has_srcApName = true;
-    }
+	if (pxMessageCdap->pcSrcApName != NULL)
+	{
+		strcpy(message.srcApName, pxMessageCdap->pcSrcApName);
+		message.has_srcApName = true;
+	}
 
-    /*Authentication Policy*/
-    if (pxMessageCdap->pcAuthPoliName != NULL)
-    {
-        strcpy(message.authPolicy.name, pxMessageCdap->pcAuthPoliName);
-        message.has_authPolicy = true;
-        message.authPolicy.versions_count = 1;
-        strcpy(message.authPolicy.versions, pxMessageCdap->pcAuthPoliVersion);
+	/*Authentication Policy*/
+	if (pxMessageCdap->pcAuthPoliName != NULL)
+	{
+		strcpy(message.authPolicy.name, pxMessageCdap->pcAuthPoliName);
+		message.has_authPolicy = true;
+		message.authPolicy.versions_count = 1;
+		strcpy(message.authPolicy.versions, pxMessageCdap->pcAuthPoliVersion);
 
-        message.authPolicy.has_name = true;
-    }
+		message.authPolicy.has_name = true;
+	}
 
-    /*Object Value*/
-    if (pxMessageCdap->pcObjClass != NULL)
-    {
-        strcpy(message.objClass, pxMessageCdap->pcObjClass);
-        message.has_objClass = true;
-    }
+	/*Object Value*/
+	if (pxMessageCdap->pcObjClass != NULL)
+	{
+		strcpy(message.objClass, pxMessageCdap->pcObjClass);
+		message.has_objClass = true;
+	}
 
-    if (pxMessageCdap->pcObjName != NULL)
-    {
-        strcpy(message.objName, pxMessageCdap->pcObjName);
-        message.has_objName = true;
-    }
+	if (pxMessageCdap->pcObjName != NULL)
+	{
+		strcpy(message.objName, pxMessageCdap->pcObjName);
+		message.has_objName = true;
+	}
 
-    if (pxMessageCdap->objInst != -1)
-    {
-        message.objInst = pxMessageCdap->objInst;
-        message.has_objInst = true;
-    }
+	if (pxMessageCdap->objInst != -1)
+	{
+		message.objInst = pxMessageCdap->objInst;
+		message.has_objInst = true;
+	}
 
-    if (pxMessageCdap->pxObjValue != NULL)
-    {
-        message.objValue.byteval.size = pxMessageCdap->pxObjValue->xSerLength;
-        memcpy(message.objValue.byteval.bytes, pxMessageCdap->pxObjValue->pvSerBuffer, pxMessageCdap->pxObjValue->xSerLength);
+	if (pxMessageCdap->pxObjValue != NULL)
+	{
+		message.objValue.byteval.size = pxMessageCdap->pxObjValue->xSerLength;
+		memcpy(message.objValue.byteval.bytes, pxMessageCdap->pxObjValue->pvSerBuffer, pxMessageCdap->pxObjValue->xSerLength);
 
-        message.has_objValue = true;
-        message.objValue.has_byteval = true;
-    }
-
-    return message;
-}
-
-NetworkBufferDescriptor_t *prvRibdEncodeCDAP(messageCdap_t *pxMessageCdap)
-{
-    BaseType_t status;
-    uint8_t *pucBuffer[256];
-    size_t xMessageLength;
-
-    /*Create a stream that will write to the buffer*/
-    pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)pucBuffer, sizeof(pucBuffer));
-
-    /*Fill the message properly*/
-    rina_messages_CDAPMessage message = prvRibdSerToRinaMessage(pxMessageCdap);
+		message.has_objValue = true;
+		message.objValue.has_byteval = true;
+	}
 
     /*Encode the message*/
     status = pb_encode(&stream, rina_messages_CDAPMessage_fields, &message);
